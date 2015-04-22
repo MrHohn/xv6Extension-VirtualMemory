@@ -93,7 +93,25 @@ trap(struct trapframe *tf)
       info.addr = tf->eax; // p's addr is stored in eax till now
       // cprintf("in page fault trap now~~~~~~~~~~~~~\n");
       // cprintf("info.addr: %d\n", info.addr);
-      info.type = PROT_READ; // set PROCT_READ as default
+      pde_t *pde;
+      pte_t *pgtab;
+      int* SpecAddr;
+
+      pde = &(proc->pgdir[PDX(info.addr)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      SpecAddr = (int*)&pgtab[PTX(info.addr)];
+
+      int temp = *SpecAddr & 0x6; // just keep the User and Writable bits
+      if (temp == 0x0 || temp == 0x2) {
+        info.type = PROT_NONE;
+      }
+      else if (temp == 0x4) {
+        info.type = PROT_READ;
+      }
+      else {
+        info.type = PROT_WRITE; 
+      }
+
       signal_deliver(SIGSEGV, info);
       break;
     }
