@@ -153,5 +153,49 @@ int sys_mprotect(void)
 
   cprintf("addr: %d\nlen: %d\nprot: %d\n", addr, len, prot);
 
+  pde_t *pde;
+  pte_t *pgtab;
+  int* SpecAddr;
+
+  if (prot == PROT_NONE) {
+
+  }
+  else if ((prot & PROT_READ) && !(prot & PROT_WRITE)) {
+    cprintf("In read section\n");
+  
+    int i;
+    // for (i  = 0; i < len; ++i) {
+    for (i  = 0; i < 1; ++i) {
+      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      SpecAddr = (int*)&pgtab[PTX(addr + i)];
+
+      cprintf("content: %d\n", *SpecAddr);
+      *SpecAddr -= PROT_WRITE;
+      cprintf("content: %d\n", *SpecAddr);
+    }
+  }
+  else if (prot & PROT_WRITE) {
+    cprintf("In write section\n");
+    
+    int i;
+    // for (i  = 0; i < len; ++i) {
+    for (i  = 0; i < 1; ++i) {
+      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      SpecAddr = (int*)&pgtab[PTX(addr + i)];
+
+      cprintf("content: %d\n", *SpecAddr);
+      *SpecAddr = *SpecAddr | prot;
+      cprintf("content: %d\n", *SpecAddr);
+    }
+  }
+  else {
+    cprintf("Error input for PROTECT LEVEL");
+    return -1;
+  }
+
+  lcr3(v2p(proc->pgdir)); // flush the TLB
+  cprintf("|||||||||||exit from mprotect\n");
   return 0;
 }

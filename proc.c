@@ -478,22 +478,29 @@ void signal_deliver(int signum, siginfo_t info)
   	*((uint*)(proc->tf->esp - 8))  = proc->tf->eax;			// eax
   	*((uint*)(proc->tf->esp - 12)) = proc->tf->ecx;			// ecx
   	*((uint*)(proc->tf->esp - 16)) = proc->tf->edx;			// edx
-  	*((uint*)(proc->tf->esp - 20)) = (uint) signum;			// signal number
-  	*((uint*)(proc->tf->esp - 24)) = proc->restorer_addr;	// address of restorer
-  	proc->tf->esp -= 24;
-  	proc->tf->eip = (uint) proc->handlers[signum];
+  	*((uint*)(proc->tf->esp - 20)) = info.type;     // push info.type
+    *((uint*)(proc->tf->esp - 24)) = info.addr;     // push info.addr
+    *((uint*)(proc->tf->esp - 28)) = (uint) signum;     // signal number
+    *((uint*)(proc->tf->esp - 32)) = proc->restorer_addr; // address of restorer
+    proc->tf->esp -= 32;
+    proc->tf->eip = (uint) proc->handlers[signum];
   }
   else {
-   uint old_eip = proc->tf->eip;
+    cprintf("---page fault deliver---\n");
+    uint old_eip = proc->tf->eip;
+    cprintf("tf->eip: %d\n", old_eip);
 
+    // *((uint*)(proc->tf->esp - 4))  = 0x10d;
     *((uint*)(proc->tf->esp - 4))  = (uint) old_eip;    // real return address
     *((uint*)(proc->tf->esp - 8))  = proc->tf->eax;     // eax
     *((uint*)(proc->tf->esp - 12)) = proc->tf->ecx;     // ecx
     *((uint*)(proc->tf->esp - 16)) = proc->tf->edx;     // edx
-    *((uint*)(proc->tf->esp - 20)) = (uint) signum;     // signal number
-    *((uint*)(proc->tf->esp - 24)) = proc->restorer_addr; // address of restorer
-    proc->tf->esp -= 24;
-    proc->tf->eip = (uint) proc->handlers[signum]; 
+    *((uint*)(proc->tf->esp - 20)) = info.type;     // push info.type
+    *((uint*)(proc->tf->esp - 24)) = info.addr;     // push info.addr
+    *((uint*)(proc->tf->esp - 28)) = (uint) signum;     // signal number
+    *((uint*)(proc->tf->esp - 32)) = proc->restorer_addr; // address of restorer
+    proc->tf->esp -= 32;
+    proc->tf->eip = (uint) proc->handlers[signum];
   }
 }
 
