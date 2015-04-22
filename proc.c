@@ -468,18 +468,33 @@ procdump(void)
   }
 }
 
-void signal_deliver(int signum)
+void signal_deliver(int signum, siginfo_t info)
 {
-	uint old_eip = proc->tf->eip;
+  if (info.addr == 0 && info.type == 0) {
+    cprintf("originally deliver\n");
+  	uint old_eip = proc->tf->eip;
 
-	*((uint*)(proc->tf->esp - 4))  = (uint) old_eip;		// real return address
-	*((uint*)(proc->tf->esp - 8))  = proc->tf->eax;			// eax
-	*((uint*)(proc->tf->esp - 12)) = proc->tf->ecx;			// ecx
-	*((uint*)(proc->tf->esp - 16)) = proc->tf->edx;			// edx
-	*((uint*)(proc->tf->esp - 20)) = (uint) signum;			// signal number
-	*((uint*)(proc->tf->esp - 24)) = proc->restorer_addr;	// address of restorer
-	proc->tf->esp -= 24;
-	proc->tf->eip = (uint) proc->handlers[signum];
+  	*((uint*)(proc->tf->esp - 4))  = (uint) old_eip;		// real return address
+  	*((uint*)(proc->tf->esp - 8))  = proc->tf->eax;			// eax
+  	*((uint*)(proc->tf->esp - 12)) = proc->tf->ecx;			// ecx
+  	*((uint*)(proc->tf->esp - 16)) = proc->tf->edx;			// edx
+  	*((uint*)(proc->tf->esp - 20)) = (uint) signum;			// signal number
+  	*((uint*)(proc->tf->esp - 24)) = proc->restorer_addr;	// address of restorer
+  	proc->tf->esp -= 24;
+  	proc->tf->eip = (uint) proc->handlers[signum];
+  }
+  else {
+   uint old_eip = proc->tf->eip;
+
+    *((uint*)(proc->tf->esp - 4))  = (uint) old_eip;    // real return address
+    *((uint*)(proc->tf->esp - 8))  = proc->tf->eax;     // eax
+    *((uint*)(proc->tf->esp - 12)) = proc->tf->ecx;     // ecx
+    *((uint*)(proc->tf->esp - 16)) = proc->tf->edx;     // edx
+    *((uint*)(proc->tf->esp - 20)) = (uint) signum;     // signal number
+    *((uint*)(proc->tf->esp - 24)) = proc->restorer_addr; // address of restorer
+    proc->tf->esp -= 24;
+    proc->tf->eip = (uint) proc->handlers[signum]; 
+  }
 }
 
 sighandler_t signal_register_handler(int signum, sighandler_t handler)
@@ -489,7 +504,10 @@ sighandler_t signal_register_handler(int signum, sighandler_t handler)
 
 	sighandler_t previous = proc->handlers[signum];
 
+  cprintf("In register handler, signum: %d\n", signum);
+
 	proc->handlers[signum] = handler;
+  cprintf("handler addr: %d\n", proc->handlers[signum]);
 
 	return previous;
 }

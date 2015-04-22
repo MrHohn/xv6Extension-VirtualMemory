@@ -78,11 +78,23 @@ trap(struct trapframe *tf)
     lapiceoi();
     break;
    
-   case T_DIVIDE:
-      if (proc->handlers[SIGFPE] != (sighandler_t) -1) {
-        signal_deliver(SIGFPE);
-        break;
-      }
+  case T_DIVIDE:
+    if (proc->handlers[SIGFPE] != (sighandler_t) -1) {
+      siginfo_t info;
+      info.addr = 0;
+      info.type = 0;
+      signal_deliver(SIGFPE, info);
+      break;
+    }
+
+  case T_PGFLT:
+    if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
+      siginfo_t info;
+      info.addr = 0;
+      info.type = 0;
+      signal_deliver(SIGSEGV, info);
+      break;
+    }
 
   //PAGEBREAK: 13
   default:

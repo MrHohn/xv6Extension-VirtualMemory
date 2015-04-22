@@ -78,5 +78,5 @@ struct proc {
 //   fixed-size stack
 //   expandable heap
 
-void signal_deliver(int signum);
+void signal_deliver(int signum, siginfo_t info);
 sighandler_t signal_register_handler(int signum, sighandler_t handler);

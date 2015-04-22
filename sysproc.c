@@ -130,3 +130,28 @@ int sys_signal_restorer(void)
     
     return 0;
 }
+
+int sys_mprotect(void)
+{
+  cprintf("In mprotect system call.\n");
+  int addr;
+  int len;
+  int prot;
+  int n;
+
+  if (argint(0, &n) < 0)
+    return -1;
+  addr = n;
+
+  if (argint(1, &n) < 0)
+    return -1;
+  len = n;
+
+  if (argint(2, &n) < 0)
+    return -1;
+  prot = n;
+
+  cprintf("addr: %d\nlen: %d\nprot: %d\n", addr, len, prot);
+
+  return 0;
+}

@@ -1,5 +1,6 @@
 #include "types.h"
 #include "user.h"
+#include "signal.h"
 
 int *p;
 
@@ -16,10 +17,12 @@ void handler(int signum, siginfo_t info)
 		printf(1, "ERROR: Didn't get proper exception, this should not happen.\n");
 		exit();
 	}
-} 
+}
+
 int main(void)
 {
-	signal(SIGSEGV, handler);
+	// signal(SIGSEGV, handler);
+	signal(SIGSEGV, (sighandler_t)handler);
  	p = (int *) malloc(sizeof(int));
  	mprotect((void *)p, sizeof(int), PROT_READ);
  	*p=100;
