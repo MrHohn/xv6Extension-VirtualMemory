@@ -91,8 +91,8 @@ trap(struct trapframe *tf)
     if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
       siginfo_t info;
       info.addr = tf->eax; // p's addr is stored in eax till now
-      cprintf("in page fault trap now~~~~~~~~~~~~~\n");
-      cprintf("info.addr: %d\n", info.addr);
+      // cprintf("in page fault trap now~~~~~~~~~~~~~\n");
+      // cprintf("info.addr: %d\n", info.addr);
       info.type = PROT_READ; // set PROCT_READ as default
       signal_deliver(SIGSEGV, info);
       break;

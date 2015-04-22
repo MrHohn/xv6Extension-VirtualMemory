@@ -7,7 +7,7 @@ int *p;
 void handler(int signum, siginfo_t info)
 {
 	printf(1,"Handler called, error address is 0x%x\n", info.addr);
-	printf(1, "info.type: %d\n", info.type);
+	// printf(1, "info.type: %d\n", info.type);
 	if(info.type == PROT_READ)
 	{
 		printf(1,"ERROR: Writing to a page with insufficient permission.\n");
@@ -18,7 +18,7 @@ void handler(int signum, siginfo_t info)
 		printf(1, "ERROR: Didn't get proper exception, this should not happen.\n");
 		exit();
 	}
-	printf(1, "exit handler\n");
+	// printf(1, "exit handler\n");
 }
 
 int main(void)
