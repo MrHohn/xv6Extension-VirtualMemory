@@ -25,7 +25,7 @@ int main(void)
 {
 	// signal(SIGSEGV, handler);
 	signal(SIGSEGV, (sighandler_t)handler);
- 	p = (int *) malloc(sizeof(int));
+ 	p = (int *) sbrk(1);
  	mprotect((void *)p, sizeof(int), PROT_READ);
  	printf(1, "back from mprotect in main\n");
  	*p=100;
