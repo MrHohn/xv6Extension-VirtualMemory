@@ -88,6 +88,8 @@ trap(struct trapframe *tf)
     }
 
   case T_PGFLT:
+    // cprintf("tf->eip: %d\n", tf->eip);
+    // cprintf("pid: %d\n", proc->pid);
     if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
       siginfo_t info;
       info.addr = tf->eax; // p's addr is stored in eax till now

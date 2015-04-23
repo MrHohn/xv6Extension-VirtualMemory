@@ -1,7 +1,8 @@
 #include "types.h"
 #include "user.h"
 
-#define NUM_FORKS 500
+// #define NUM_FORKS 500
+#define NUM_FORKS 10
 
 int main(void)
 {
@@ -19,11 +20,13 @@ int main(void)
         t1 = uptime();
         if(fork() == 0)
         {
+            printf(1, "I'm a child(fork)\n");
             exit();
         }
         else
         {
            t2 += uptime() - t1;
+           printf(1, "wait for a child...\n");
            wait();
         }
     }
@@ -32,17 +35,21 @@ int main(void)
     printf(1,"Please wait some more!%d.....\n");
     t1 = uptime();
     t2 = 0;
+    int id;
     for(i = 0; i < NUM_FORKS; i++)
     {
         t1 = uptime();
-        if(cowfork() == 0)
+        if((id = cowfork()) == 0)
         {
+            printf(1, "I'm a child(cowfork)\n");
             exit();
         }
         else
         {
-          t2 += uptime() - t1;
-          wait();
+            printf(1, "create a child with pid %d\n", id);
+            t2 += uptime() - t1;
+            printf(1, "wait for a child...\n");
+            wait();
         }
     }
     printf(1, "Total uptime for %d cowforks is %d, average is %d...\n", NUM_FORKS, t2, t2 / 500);

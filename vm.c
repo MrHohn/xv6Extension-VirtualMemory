@@ -6,6 +6,7 @@
 #include "mmu.h"
 #include "proc.h"
 #include "elf.h"
+#include "spinlock.h"
 
 extern char data[];  // defined by kernel.ld
 pde_t *kpgdir;  // for use in scheduler()
@@ -334,6 +335,65 @@ copyuvm(pde_t *pgdir, uint sz)
 bad:
   freevm(d);
   return 0;
+}
+
+// Given a parent process's page table, remap
+// it for a COW child.
+pde_t*
+cowcopyuvm(pde_t *pgdir, uint sz)
+{
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+  // char *mem;
+
+  if((d = setupkvm()) == 0)
+    return 0;
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags &= 0xFFD; // disable the Writable bit
+    // if((mem = kalloc()) == 0)
+    //   goto bad;
+    // memmove(mem, (char*)p2v(pa), PGSIZE);
+    // if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
+    //   goto bad;
+    // instead of create new pages, remap the pages for cow child
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+      goto bad;
+  }
+  return d;
+
+bad:
+  freevm(d);
+  return 0;
+}
+
+// structure to hold sharing information
+struct entry
+{
+  // struct spinlock lock;
+  int count;
+// } shareTable[60 * 1024]; // table for all pages, upto 240MB(PHYSTOP)
+} shareTable[60 * 1024];
+
+struct spinlock tablelock; // lock for share table
+
+// share table initialize function
+void
+sharetableinit(void)
+{
+  int i;
+  for (i = 0; i < 60 * 1024; ++i) {
+    // initlock(&shareTable[i].lock, "sharetable");
+    shareTable[i].count = 1;
+  }
+  initlock(&tablelock, "sharetable");
+  // cprintf("share table init done\n");
 }
 
 //PAGEBREAK!

@@ -72,6 +72,7 @@ found:
 
   p->handlers[SIGKILL] = (sighandler_t) -1;
   p->handlers[SIGFPE] = (sighandler_t) -1;
+  p->handlers[SIGSEGV] = (sighandler_t) -1;
   p->restorer_addr = -1;
 
   return p;
@@ -131,47 +132,6 @@ growproc(int n)
 // Caller must set state of returned proc to RUNNABLE.
 int
 fork(void)
-{
-  int i, pid;
-  struct proc *np;
-
-  // Allocate process.
-  if((np = allocproc()) == 0)
-    return -1;
-
-  // Copy process state from p.
-  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
-    kfree(np->kstack);
-    np->kstack = 0;
-    np->state = UNUSED;
-    return -1;
-  }
-  np->sz = proc->sz;
-  np->parent = proc;
-  *np->tf = *proc->tf;
-
-  // Clear %eax so that fork returns 0 in the child.
-  np->tf->eax = 0;
-
-  for(i = 0; i < NOFILE; i++)
-    if(proc->ofile[i])
-      np->ofile[i] = filedup(proc->ofile[i]);
-  np->cwd = idup(proc->cwd);
-
-  safestrcpy(np->name, proc->name, sizeof(proc->name));
- 
-  pid = np->pid;
-
-  // lock to force the compiler to emit the np->state write last.
-  acquire(&ptable.lock);
-  np->state = RUNNABLE;
-  release(&ptable.lock);
-  
-  return pid;
-}
-
-int
-cowfork(void)
 {
   int i, pid;
   struct proc *np;
@@ -277,7 +237,9 @@ wait(void)
         pid = p->pid;
         kfree(p->kstack);
         p->kstack = 0;
-        freevm(p->pgdir);
+        if (p->shared == 0) { // clean the memory space iff it is not shared
+          freevm(p->pgdir);
+        }
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;
@@ -512,7 +474,7 @@ procdump(void)
 void signal_deliver(int signum, siginfo_t info)
 {
   uint old_eip = proc->tf->eip;
-  cprintf("tf->eip: %d\n", old_eip);
+  // cprintf("tf->eip: %d\n", old_eip);
 
   *((uint*)(proc->tf->esp - 4))  = (uint) old_eip;    // real return address
   *((uint*)(proc->tf->esp - 8))  = proc->tf->eax;     // eax
@@ -539,4 +501,52 @@ sighandler_t signal_register_handler(int signum, sighandler_t handler)
   cprintf("handler addr: %d\n", proc->handlers[signum]);
 
 	return previous;
+}
+
+int
+cowfork(void)
+{
+  int i, pid;
+  struct proc *np;
+
+  // Allocate process.
+  if((np = allocproc()) == 0)
+    return -1;
+
+  // Copy process state from p.
+  if((np->pgdir = cowcopyuvm(proc->pgdir, proc->sz)) == 0){
+    kfree(np->kstack);
+    np->kstack = 0;
+    np->state = UNUSED;
+    return -1;
+  }
+  np->sz = proc->sz;
+  np->parent = proc;
+  *np->tf = *proc->tf;
+
+  // Clear %eax so that fork returns 0 in the child.
+  np->tf->eax = 0;
+
+  // // reallocate old process's page table to new process
+  // np->pgdir = proc->pgdir;
+
+  // set the shared flag to 1
+  proc->shared = 1;
+  np->shared = 1;
+
+  for(i = 0; i < NOFILE; i++)
+    if(proc->ofile[i])
+      np->ofile[i] = filedup(proc->ofile[i]);
+  np->cwd = idup(proc->cwd);
+
+  safestrcpy(np->name, proc->name, sizeof(proc->name));
+ 
+  pid = np->pid;
+
+  // lock to force the compiler to emit the np->state write last.
+  acquire(&ptable.lock);
+  np->state = RUNNABLE;
+  release(&ptable.lock);
+  
+  return pid;
 }
