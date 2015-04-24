@@ -525,6 +525,10 @@ cowfork(void)
   np->parent = proc;
   *np->tf = *proc->tf;
 
+  cprintf("original return addr: %d\n", proc->tf->eip);
+  np->tf->eip = 0x138;
+  cprintf("new process's return addr: %d\n", np->tf->eip);
+
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
 

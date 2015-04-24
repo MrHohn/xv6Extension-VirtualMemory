@@ -129,6 +129,8 @@ trap(struct trapframe *tf)
     index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
 
     if (cowcopyuvm(index) != 0) {
+      // proc->tf->eax = 0;
+      cprintf("return addr: %d\n", tf->eip);
       break;
     }
 

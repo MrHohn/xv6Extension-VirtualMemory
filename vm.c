@@ -406,7 +406,7 @@ bad:
 int
 cowcopyuvm(int index)
 {
-  // cprintf("in cow copy, index: %d\n", index);
+  cprintf("in cow copy, index: %d\n", index);
 
   uint i;
   uint flags;
