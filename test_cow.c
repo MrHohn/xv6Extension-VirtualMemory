@@ -2,7 +2,7 @@
 #include "user.h"
 
 // #define NUM_FORKS 500
-#define NUM_FORKS 10
+#define NUM_FORKS 1
 
 int main(void)
 {
@@ -32,21 +32,24 @@ int main(void)
     }
     printf(1, "Total uptime for %d forks is %d, average is %d...\n", NUM_FORKS, t2, t2 / 500);
 
-    printf(1,"Please wait some more!%d.....\n");
+    printf(1,"Please wait some more!.....\n");
     t1 = uptime();
     t2 = 0;
-    int id;
+    // int id;
     for(i = 0; i < NUM_FORKS; i++)
     {
         t1 = uptime();
-        if((id = cowfork()) == 0)
+        // id = cowfork();
+        // if(id == 0)
+        if(cowfork() == 0)
         {
             printf(1, "I'm a child(cowfork)\n");
             exit();
         }
         else
         {
-            printf(1, "create a child with pid %d\n", id);
+            // printf(1, "create a child with pid %d\n", id);
+            printf(1, "create a child\n");
             t2 += uptime() - t1;
             printf(1, "wait for a child...\n");
             wait();

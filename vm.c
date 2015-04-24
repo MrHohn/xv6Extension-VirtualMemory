@@ -337,49 +337,12 @@ bad:
   return 0;
 }
 
-// Given a parent process's page table, remap
-// it for a COW child.
-pde_t*
-cowcopyuvm(pde_t *pgdir, uint sz)
-{
-  pde_t *d;
-  pte_t *pte;
-  uint pa, i, flags;
-  // char *mem;
-
-  if((d = setupkvm()) == 0)
-    return 0;
-  for(i = 0; i < sz; i += PGSIZE){
-    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
-      panic("copyuvm: pte should exist");
-    if(!(*pte & PTE_P))
-      panic("copyuvm: page not present");
-    pa = PTE_ADDR(*pte);
-    flags = PTE_FLAGS(*pte);
-    flags &= 0xFFD; // disable the Writable bit
-    // if((mem = kalloc()) == 0)
-    //   goto bad;
-    // memmove(mem, (char*)p2v(pa), PGSIZE);
-    // if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
-    //   goto bad;
-    // instead of create new pages, remap the pages for cow child
-    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
-      goto bad;
-  }
-  return d;
-
-bad:
-  freevm(d);
-  return 0;
-}
-
 // structure to hold sharing information
 struct entry
 {
   // struct spinlock lock;
   int count;
-// } shareTable[60 * 1024]; // table for all pages, upto 240MB(PHYSTOP)
-} shareTable[60 * 1024];
+} shareTable[60 * 1024]; // table for all pages, upto 240MB(PHYSTOP)
 
 struct spinlock tablelock; // lock for share table
 
@@ -394,6 +357,101 @@ sharetableinit(void)
   }
   initlock(&tablelock, "sharetable");
   // cprintf("share table init done\n");
+}
+
+// Given a parent process's page table, remap
+// it for a COW child.
+pde_t*
+cowmapuvm(pde_t *pgdir, uint sz)
+{
+  pde_t *d;
+  pte_t *pte;
+  uint pa, i, flags;
+  // char *mem;
+  int index;
+
+  if((d = setupkvm()) == 0)
+    return 0;
+  for(i = 0; i < sz; i += PGSIZE){
+    if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    flags = PTE_FLAGS(*pte);
+    flags &= 0xFFD; // disable the Writable bit
+    index = (pa >> 12) & 0xFFFFF; // get the physical page num
+    // cprintf("pa = %d\n", pa);
+    // cprintf("index = %d\n", index);
+
+    // if((mem = kalloc()) == 0)
+    //   goto bad;
+    // memmove(mem, (char*)p2v(pa), PGSIZE);
+    // if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
+    //   goto bad;
+
+    // instead of create new pages, remap the pages for cow child
+    if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
+      goto bad;
+
+    ++shareTable[index].count; // increase the share count
+  }
+  return d;
+
+bad:
+  freevm(d);
+  return 0;
+}
+
+int
+cowcopyuvm(int index)
+{
+  // cprintf("in cow copy, index: %d\n", index);
+
+  uint i;
+  uint flags;
+  uint pa;
+  int indexcheck;
+  pte_t *pte;
+  int shared = 0;
+  char *mem;
+
+  // check if the address is in user space
+  for(i = 0; i < proc->sz; i += PGSIZE){
+    if((pte = walkpgdir(proc->pgdir, (void *) i, 0)) == 0)
+      panic("copyuvm: pte should exist");
+    if(!(*pte & PTE_P))
+      panic("copyuvm: page not present");
+    pa = PTE_ADDR(*pte);
+    // flags = PTE_FLAGS(*pte);
+    // flags &= 0xFFD; // disable the Writable bit
+    indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
+    if (index == indexcheck) {
+      cprintf("is shared!\n");
+      shared = 1;
+      break;
+    }  
+    // cprintf("indexcheck = %d\n", indexcheck);
+  }
+
+  if (shared == 1) {
+    for(i = 0; i < proc->sz; i += PGSIZE){
+      pte = walkpgdir(proc->pgdir, (void *) i, 0);
+      *pte &= ~PTE_P;
+      pa = PTE_ADDR(*pte);
+      flags = PTE_FLAGS(*pte);
+      flags |= 0x2; // enable the Writable bit
+      if((mem = kalloc()) == 0)
+        goto bad;
+      memmove(mem, (char*)p2v(pa), PGSIZE);
+      if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0)
+        goto bad;
+    }
+    return 1;
+  }
+
+bad:
+  return 0;
 }
 
 //PAGEBREAK!

@@ -92,7 +92,8 @@ trap(struct trapframe *tf)
     // cprintf("pid: %d\n", proc->pid);
     if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
       siginfo_t info;
-      info.addr = tf->eax; // p's addr is stored in eax till now
+      // info.addr = tf->eax; // p's addr is stored in eax till now
+      info.addr = rcr2();
       // cprintf("in page fault trap now~~~~~~~~~~~~~\n");
       // cprintf("info.addr: %d\n", info.addr);
       pde_t *pde;
@@ -115,6 +116,19 @@ trap(struct trapframe *tf)
       }
 
       signal_deliver(SIGSEGV, info);
+      break;
+    }
+
+    // for share part
+    pde_t *pde_s;
+    pte_t *pgtab_s;
+    int index;
+
+    pde_s = &(proc->pgdir[PDX(rcr2())]); // address of the page directory
+    pgtab_s = (pte_t*)p2v(PTE_ADDR(*pde_s)); // address of the page table
+    index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
+
+    if (cowcopyuvm(index) != 0) {
       break;
     }
 
