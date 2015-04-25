@@ -381,6 +381,8 @@ cowmapuvm(pde_t *pgdir, uint sz)
     flags = PTE_FLAGS(*pte);
     flags &= 0xFFD; // disable the Writable bit
     index = (pa >> 12) & 0xFFFFF; // get the physical page num
+    *pte &= ~PTE_W; // disable the Writable bit
+
     // cprintf("pa = %d\n", pa);
     // cprintf("index = %d\n", index);
 
