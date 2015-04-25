@@ -179,8 +179,9 @@ void            switchuvm(struct proc*);
 void            switchkvm(void);
 int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
+int             mprotect(int addr, int len, int prot);
 pde_t*          cowmapuvm(pde_t*, uint);
-int            cowcopyuvm(int);
+int             cowcopyuvm(int);
 void            sharetableinit(void);
 
 // number of elements in fixed-size array

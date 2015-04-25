@@ -130,12 +130,14 @@ trap(struct trapframe *tf)
       pgtab_s = (pte_t*)p2v(PTE_ADDR(*pde_s)); // address of the page table
       index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
 
+      // index = (walkpgdir(proc->pgdir, (void *) rcr2(), 0) >> 12) & 0xFFFFF;
+
       if (cowcopyuvm(index) != 0) {
         // proc->tf->eax = 0;
         // cprintf("return addr: %d\n", tf->eip);
         break;
       }
-    
+
     }
 
   //PAGEBREAK: 13

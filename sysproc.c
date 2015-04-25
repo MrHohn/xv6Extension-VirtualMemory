@@ -143,77 +143,15 @@ int sys_mprotect(void)
   int addr;
   int len;
   int prot;
-  int n;
 
-  if (argint(0, &n) < 0)
+  if (argint(0, &addr) < 0)
     return -1;
-  addr = n;
-
-  if (argint(1, &n) < 0)
+  if (argint(1, &len) < 0)
     return -1;
-  len = n;
-
-  if (argint(2, &n) < 0)
+  if (argint(2, &prot) < 0)
     return -1;
-  prot = n;
 
   cprintf("addr: %d\nlen: %d\nprot: %d\n", addr, len, prot);
 
-  pde_t *pde;
-  pte_t *pgtab;
-  int* SpecAddr;
-
-  if (prot == PROT_NONE) {
-    cprintf("In none section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr & 0xFFFFFFFB; // disable the User bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else if ((prot & PROT_READ) && !(prot & PROT_WRITE)) {
-    cprintf("In read section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr & 0xFFFFFFFD; // disable the Writable bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else if (prot & PROT_WRITE) {
-    cprintf("In write section\n");
-    
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr | prot; // enable the Writable bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else {
-    cprintf("Error input for PROTECT LEVEL");
-    return -1;
-  }
-
-  lcr3(v2p(proc->pgdir)); // flush the TLB
-  // cprintf("|||||||||||exit from mprotect\n");
-  return 0;
+  return mprotect(addr, len, prot);
 }
