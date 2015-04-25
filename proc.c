@@ -515,7 +515,6 @@ cowfork(void)
 
   // Copy process state from p.
   if((np->pgdir = cowmapuvm(proc->pgdir, proc->sz)) == 0){
-  // if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
     kfree(np->kstack);
     np->kstack = 0;
     np->state = UNUSED;
@@ -525,15 +524,8 @@ cowfork(void)
   np->parent = proc;
   *np->tf = *proc->tf;
 
-  cprintf("original return addr: %d\n", proc->tf->eip);
-  // np->tf->eip = 0x138;
-  cprintf("new process's return addr: %d\n", np->tf->eip);
-
   // Clear %eax so that fork returns 0 in the child.
   np->tf->eax = 0;
-
-  // // reallocate old process's page table to new process
-  // np->pgdir = proc->pgdir;
 
   // set the shared flag to 1
   proc->shared = 1;

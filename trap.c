@@ -130,7 +130,7 @@ trap(struct trapframe *tf)
 
     if (cowcopyuvm(index) != 0) {
       // proc->tf->eax = 0;
-      cprintf("return addr: %d\n", tf->eip);
+      // cprintf("return addr: %d\n", tf->eip);
       break;
     }
 
