@@ -120,18 +120,22 @@ trap(struct trapframe *tf)
     }
 
     // for share part
-    pde_t *pde_s;
-    pte_t *pgtab_s;
-    int index;
+    if (proc-> shared == 1) {
 
-    pde_s = &(proc->pgdir[PDX(rcr2())]); // address of the page directory
-    pgtab_s = (pte_t*)p2v(PTE_ADDR(*pde_s)); // address of the page table
-    index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
+      pde_t *pde_s;
+      pte_t *pgtab_s;
+      int index;
 
-    if (cowcopyuvm(index) != 0) {
-      // proc->tf->eax = 0;
-      // cprintf("return addr: %d\n", tf->eip);
-      break;
+      pde_s = &(proc->pgdir[PDX(rcr2())]); // address of the page directory
+      pgtab_s = (pte_t*)p2v(PTE_ADDR(*pde_s)); // address of the page table
+      index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
+
+      if (cowcopyuvm(index) != 0) {
+        // proc->tf->eax = 0;
+        // cprintf("return addr: %d\n", tf->eip);
+        break;
+      }
+    
     }
 
   //PAGEBREAK: 13

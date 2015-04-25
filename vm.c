@@ -365,7 +365,8 @@ sharetableinit(void)
 pde_t*
 cowmapuvm(pde_t *pgdir, uint sz)
 {
-  cprintf("in cow map\n");
+  // cprintf("in cow map\n");
+
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
@@ -390,13 +391,18 @@ cowmapuvm(pde_t *pgdir, uint sz)
       goto bad;
 
     if (shareTable[index].count == 0) {
+      acquire(&tablelock);
       shareTable[index].count = 2;
+      release(&tablelock);
     }
     else {
+      acquire(&tablelock);
       ++shareTable[index].count; // increase the share count
+      release(&tablelock);
     }
-    cprintf("index: %d count: %d\n",index, shareTable[index].count);
+    cprintf("pid: %d index: %d count: %d\n", proc->pid, index, shareTable[index].count);
   }
+  lcr3(v2p(proc->pgdir)); // flush the TLB  
   return d;
 
 bad:
@@ -407,7 +413,7 @@ bad:
 int
 cowcopyuvm(int index)
 {
-  cprintf("in cow copy, index: %d\n", index);
+  // cprintf("in cow copy, index: %d\n", index);
 
   uint i;
   uint flags;
@@ -423,7 +429,7 @@ cowcopyuvm(int index)
     pa = PTE_ADDR(*pte);
     indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
     if (index == indexcheck) {
-      cprintf("is shared!\n");
+      // cprintf("is shared!\n");
       shared = 1;
       break;
     }  
@@ -441,15 +447,20 @@ cowcopyuvm(int index)
       if((mem = kalloc()) == 0)
         goto bad;
       memmove(mem, (char*)p2v(pa), PGSIZE);
+      
+      acquire(&tablelock);
       --shareTable[indexcheck].count; // decrease the share count
-      cprintf("index: %d count: %d\n",indexcheck, shareTable[indexcheck].count);
+      release(&tablelock);
+      
+      cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
       if (shareTable[indexcheck].count == 0) {
-        kfree((char*)p2v(pa));
+        // kfree((char*)p2v(pa));
       }
       if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0)
         goto bad;
     }
     proc->shared = 0;
+    lcr3(v2p(proc->pgdir)); // flush the TLB
     return 1;
   }
 

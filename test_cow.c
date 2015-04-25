@@ -2,7 +2,7 @@
 #include "user.h"
 
 // #define NUM_FORKS 500
-#define NUM_FORKS 2
+#define NUM_FORKS 100
 
 int main(void)
 {
@@ -12,7 +12,7 @@ int main(void)
     temp=malloc(40960); //required to allocate more pages to get better results
     *temp=0;
 
-    printf(1,"Please wait! %d.....\n");
+    printf(1,"Please wait!.....\n");
     t1 = uptime();
     t2 = 0;
     for(i = 0; i < NUM_FORKS; i++)
@@ -26,7 +26,7 @@ int main(void)
         else
         {
            t2 += uptime() - t1;
-           printf(1, "wait for a child...\n");
+           // printf(1, "wait for a child...\n");
            wait();
         }
     }
@@ -40,13 +40,13 @@ int main(void)
         t1 = uptime();
         if(cowfork() == 0)
         {
-            printf(1, "I'm a child(cowfork), pid: %d\n", getpid());
+            // printf(1, "I'm a child(cowfork), pid: %d\n", getpid());
             exit();
         }
         else
         {
             t2 += uptime() - t1;
-            printf(1, "wait for a child...\n");
+            // printf(1, "wait for a child...\n");
             wait();
         }
     }
