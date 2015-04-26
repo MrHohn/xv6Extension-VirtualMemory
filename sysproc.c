@@ -14,12 +14,6 @@ sys_fork(void)
 }
 
 int
-sys_cowfork(void)
-{
-  return cowfork();
-}
-
-int
 sys_exit(void)
 {
   exit();
@@ -154,4 +148,10 @@ int sys_mprotect(void)
   cprintf("addr: %d\nlen: %d\nprot: %d\n", addr, len, prot);
 
   return mprotect(addr, len, prot);
+}
+
+int
+sys_cowfork(void)
+{
+  return cowfork();
 }

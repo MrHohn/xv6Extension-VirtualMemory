@@ -93,7 +93,7 @@ trap(struct trapframe *tf)
     if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
       siginfo_t info;
       // info.addr = tf->eax; // p's addr is stored in eax till now
-      info.addr = rcr2();
+      info.addr = rcr2(); // get the error access address
       // cprintf("in page fault trap now~~~~~~~~~~~~~\n");
       // cprintf("info.addr: %d\n", info.addr);
       pde_t *pde;

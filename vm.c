@@ -285,7 +285,7 @@ freevm(pde_t *pgdir)
   deallocuvm(pgdir, KERNBASE, 0);
   for(i = 0; i < NPDENTRIES; i++){
     if(pgdir[i] & PTE_P){
-      char * v = p2v(PTE_ADDR(pgdir[i]));
+      char *v = p2v(PTE_ADDR(pgdir[i]));
       kfree(v);
     }
   }
@@ -334,6 +334,116 @@ copyuvm(pde_t *pgdir, uint sz)
 
 bad:
   freevm(d);
+  return 0;
+}
+
+//PAGEBREAK!
+// Map user virtual address to kernel address.
+char*
+uva2ka(pde_t *pgdir, char *uva)
+{
+  pte_t *pte;
+
+  pte = walkpgdir(pgdir, uva, 0);
+  if((*pte & PTE_P) == 0)
+    return 0;
+  if((*pte & PTE_U) == 0)
+    return 0;
+  return (char*)p2v(PTE_ADDR(*pte));
+}
+
+// Copy len bytes from p to user address va in page table pgdir.
+// Most useful when pgdir is not the current page table.
+// uva2ka ensures this only works for PTE_U pages.
+int
+copyout(pde_t *pgdir, uint va, void *p, uint len)
+{
+  char *buf, *pa0;
+  uint n, va0;
+
+  buf = (char*)p;
+  while(len > 0){
+    va0 = (uint)PGROUNDDOWN(va);
+    pa0 = uva2ka(pgdir, (char*)va0);
+    if(pa0 == 0)
+      return -1;
+    n = PGSIZE - (va - va0);
+    if(n > len)
+      n = len;
+    memmove(pa0 + (va - va0), buf, n);
+    len -= n;
+    buf += n;
+    va = va0 + PGSIZE;
+  }
+  return 0;
+}
+
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.
+//PAGEBREAK!
+// Blank page.
+
+int mprotect(addr, len, prot)
+{
+  pde_t *pde;
+  pte_t *pgtab;
+  int* specAddr;
+
+  if (prot == PROT_NONE) {
+    cprintf("In none section\n");
+  
+    int i;
+    for (i  = 0; i < len; ++i) {
+    // for (i  = 0; i < 1; ++i) {
+      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      specAddr = (int*)&pgtab[PTX(addr + i)];
+      // specAddr = walkpgdir(proc->pgdir, (void*) addr + i, 0);
+
+      cprintf("content: %d\n", *specAddr);
+      *specAddr = *specAddr & 0xFFFFFFFB; // disable the User bit
+      cprintf("content: %d\n", *specAddr);
+    }
+  }
+  else if ((prot & PROT_READ) && !(prot & PROT_WRITE)) {
+    cprintf("In read section\n");
+  
+    int i;
+    for (i  = 0; i < len; ++i) {
+    // for (i  = 0; i < 1; ++i) {
+      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      specAddr = (int*)&pgtab[PTX(addr + i)];
+
+      cprintf("content: %d\n", *specAddr);
+      *specAddr = *specAddr & 0xFFFFFFFD; // disable the Writable bit
+      cprintf("content: %d\n", *specAddr);
+    }
+  }
+  else if (prot & PROT_WRITE) {
+    cprintf("In write section\n");
+    
+    int i;
+    for (i  = 0; i < len; ++i) {
+    // for (i  = 0; i < 1; ++i) {
+      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
+      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
+      specAddr = (int*)&pgtab[PTX(addr + i)];
+
+      cprintf("content: %d\n", *specAddr);
+      *specAddr = *specAddr | prot; // enable the Writable bit
+      cprintf("content: %d\n", *specAddr);
+    }
+  }
+  else {
+    cprintf("Error input for PROTECT LEVEL");
+    return -1;
+  }
+
+  lcr3(v2p(proc->pgdir)); // flush the TLB
+  // cprintf("|||||||||||exit from mprotect\n");
   return 0;
 }
 
@@ -390,17 +500,16 @@ cowmapuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
 
+    acquire(&tablelock);
     if (shareTable[index].count == 0) {
-      acquire(&tablelock);
-      shareTable[index].count = 2;
-      release(&tablelock);
+      shareTable[index].count = 2; // now is shared, totally 2 processes
     }
     else {
-      acquire(&tablelock);
       ++shareTable[index].count; // increase the share count
-      release(&tablelock);
     }
-    cprintf("pid: %d index: %d count: %d\n", proc->pid, index, shareTable[index].count);
+    release(&tablelock);
+    
+    // cprintf("pid: %d index: %d count: %d\n", proc->pid, index, shareTable[index].count);
   }
   lcr3(v2p(proc->pgdir)); // flush the TLB  
   return d;
@@ -439,7 +548,7 @@ cowcopyuvm(int index)
   if (shared == 1) {
     for(i = 0; i < proc->sz; i += PGSIZE){
       pte = walkpgdir(proc->pgdir, (void *) i, 0);
-      *pte &= ~PTE_P;
+      *pte &= ~PTE_P; // reset the present bit for remap the pages
       pa = PTE_ADDR(*pte);
       indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
       flags = PTE_FLAGS(*pte);
@@ -450,14 +559,20 @@ cowcopyuvm(int index)
       
       acquire(&tablelock);
       --shareTable[indexcheck].count; // decrease the share count
-      release(&tablelock);
-      
-      cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
+      // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
       if (shareTable[indexcheck].count == 0) {
         // kfree((char*)p2v(pa));
+        // char * v = p2v(PTE_ADDR(proc->pgdir[i]));
+        // free the page of physical memory
+        char * v = p2v(pa);
+        kfree(v);
       }
-      if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0)
+      release(&tablelock);
+      
+      if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
+        cprintf("bad in cowcopyuvm\n");
         goto bad;
+      }
     }
     proc->shared = 0;
     lcr3(v2p(proc->pgdir)); // flush the TLB
@@ -466,113 +581,4 @@ cowcopyuvm(int index)
 
 bad:
   return 0;
-}
-
-//PAGEBREAK!
-// Map user virtual address to kernel address.
-char*
-uva2ka(pde_t *pgdir, char *uva)
-{
-  pte_t *pte;
-
-  pte = walkpgdir(pgdir, uva, 0);
-  if((*pte & PTE_P) == 0)
-    return 0;
-  if((*pte & PTE_U) == 0)
-    return 0;
-  return (char*)p2v(PTE_ADDR(*pte));
-}
-
-// Copy len bytes from p to user address va in page table pgdir.
-// Most useful when pgdir is not the current page table.
-// uva2ka ensures this only works for PTE_U pages.
-int
-copyout(pde_t *pgdir, uint va, void *p, uint len)
-{
-  char *buf, *pa0;
-  uint n, va0;
-
-  buf = (char*)p;
-  while(len > 0){
-    va0 = (uint)PGROUNDDOWN(va);
-    pa0 = uva2ka(pgdir, (char*)va0);
-    if(pa0 == 0)
-      return -1;
-    n = PGSIZE - (va - va0);
-    if(n > len)
-      n = len;
-    memmove(pa0 + (va - va0), buf, n);
-    len -= n;
-    buf += n;
-    va = va0 + PGSIZE;
-  }
-  return 0;
-}
-
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
-//PAGEBREAK!
-// Blank page.
-
-int mprotect(addr, len, prot)
-{
-  pde_t *pde;
-  pte_t *pgtab;
-  int* SpecAddr;
-
-  if (prot == PROT_NONE) {
-    cprintf("In none section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr & 0xFFFFFFFB; // disable the User bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else if ((prot & PROT_READ) && !(prot & PROT_WRITE)) {
-    cprintf("In read section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr & 0xFFFFFFFD; // disable the Writable bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else if (prot & PROT_WRITE) {
-    cprintf("In write section\n");
-    
-    int i;
-    for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *SpecAddr);
-      *SpecAddr = *SpecAddr | prot; // enable the Writable bit
-      cprintf("content: %d\n", *SpecAddr);
-    }
-  }
-  else {
-    cprintf("Error input for PROTECT LEVEL");
-    return -1;
-  }
-
-  lcr3(v2p(proc->pgdir)); // flush the TLB
-  // cprintf("|||||||||||exit from mprotect\n");
-  return 0;
-}
+} 

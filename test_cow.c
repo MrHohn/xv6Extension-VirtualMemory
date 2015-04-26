@@ -2,7 +2,7 @@
 #include "user.h"
 
 // #define NUM_FORKS 500
-#define NUM_FORKS 100
+#define NUM_FORKS 10
 
 int main(void)
 {
