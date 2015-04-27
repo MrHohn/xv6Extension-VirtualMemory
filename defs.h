@@ -183,6 +183,7 @@ int             mprotect(int addr, int len, int prot);
 pde_t*          cowmapuvm(pde_t*, uint);
 int             cowcopyuvm(int);
 void            sharetableinit(void);
+void            cowfreevm(pde_t*);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))

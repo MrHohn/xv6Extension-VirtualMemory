@@ -240,6 +240,10 @@ wait(void)
         if (p->shared == 0) { // clean the memory space iff it is not shared
           freevm(p->pgdir);
         }
+        else {
+          // check whether the process need to clean the memory or not
+          cowfreevm(p->pgdir);
+        }
         p->state = UNUSED;
         p->pid = 0;
         p->parent = 0;

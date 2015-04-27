@@ -385,7 +385,8 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 //PAGEBREAK!
 // Blank page.
 
-int mprotect(addr, len, prot)
+int
+mprotect(addr, len, prot)
 {
   pde_t *pde;
   pte_t *pgtab;
@@ -568,7 +569,7 @@ cowcopyuvm(int index)
         kfree(v);
       }
       release(&tablelock);
-      
+
       if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
         cprintf("bad in cowcopyuvm\n");
         goto bad;
@@ -582,3 +583,30 @@ cowcopyuvm(int index)
 bad:
   return 0;
 } 
+
+void
+cowfreevm(pde_t *pgdir) {
+  pte_t *pte;
+  uint pa;
+  uint i;
+  int indexcheck;
+
+  pte = walkpgdir(proc->pgdir, (void *) 0, 0); // get the first entry in pgdir
+  pa = PTE_ADDR(*pte);
+  indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
+  // if the memory space is only used by this process, free it
+  if (shareTable[indexcheck].count == 1) {
+    // decease all the related counter
+    for(i = 0; i < proc->sz; i += PGSIZE){
+      pte = walkpgdir(pgdir, (void *) i, 0);
+      pa = PTE_ADDR(*pte);
+      indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
+      
+      acquire(&tablelock);
+      --shareTable[indexcheck].count; // decrease the share counter
+      release(&tablelock);
+    }
+    freevm(pgdir);
+    proc->shared = 0;
+  }
+}
