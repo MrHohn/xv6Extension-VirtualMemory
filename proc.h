@@ -71,6 +71,7 @@ struct proc {
   sighandler_t handlers[15];    // Signal handlers
   uint restorer_addr;          // Signal restorer
   int shared;                  // shared flag
+  uint actualsz;               // Record the actual size of proccess
 };
 
 // Process memory is laid out contiguously, low addresses first:

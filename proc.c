@@ -74,6 +74,7 @@ found:
   p->handlers[SIGFPE] = (sighandler_t) -1;
   p->handlers[SIGSEGV] = (sighandler_t) -1;
   p->restorer_addr = -1;
+  p->actualsz = 0;
 
   return p;
 }
@@ -148,6 +149,7 @@ fork(void)
     return -1;
   }
   np->sz = proc->sz;
+  // np->actualsz = np->sz;
   np->parent = proc;
   *np->tf = *proc->tf;
 
@@ -550,4 +552,25 @@ cowfork(void)
   release(&ptable.lock);
   
   return pid;
+}
+
+// Grow current process's memory by n bytes.
+// Return 0 on success, -1 on failure.
+int
+dgrowproc(int n)
+{
+  uint sz;
+  
+  sz = proc->sz;
+  if(n > 0){
+    if((sz = dchangesize(sz, sz + n)) == 0)
+      return -1;
+  } 
+  else {
+    cprintf("Could not use dsbrk with inpositive size!\n");
+    return -1;
+  }
+  proc->sz = sz;
+  switchuvm(proc);
+  return 0;
 }

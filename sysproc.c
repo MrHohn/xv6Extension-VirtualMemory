@@ -161,11 +161,19 @@ sys_dsbrk(void)
 {
   int addr;
   int n;
-
+  
+  if (proc->actualsz == 0) {
+    // cprintf("original proc size: %d\n", proc->sz);
+    // cprintf("actual proc size: %d\n", proc->actualsz);
+    proc->actualsz = proc->sz;
+  }
+  
   if(argint(0, &n) < 0)
     return -1;
   addr = proc->sz;
-  // if(growproc(n) < 0)
-  //   return -1;
+  if(dgrowproc(n) < 0)
+    return -1;
+  
+  // cprintf("proc size: %d\n", proc->sz);
   return addr;
 }

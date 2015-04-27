@@ -142,8 +142,19 @@ trap(struct trapframe *tf)
 
 
     // for the demand heap allocation
-    growproc(4096);
-    break;
+    uint addr = rcr2(); 
+    if (addr > tf->ebp && addr < proc->sz && proc->actualsz != proc->sz) {
+      // cprintf("proc size: %d\n", proc->sz);
+      // cprintf("proc actual size: %d\n", proc->actualsz);
+      // cprintf("error addr: %d\n", rcr2());
+      proc->actualsz = dallocuvm(proc->pgdir, proc->actualsz, addr + 1);
+      break;
+    }
+    // cprintf("proc kstack bottom: %d\n", (int*)proc->kstack);
+    // cprintf("proc esp: %d\n", tf->esp);
+    // cprintf("proc ebp: %d\n", tf->ebp);
+    // growproc(4096);
+    // break;
 
   //PAGEBREAK: 13
   default:

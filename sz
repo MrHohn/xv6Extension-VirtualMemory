@@ -1,0 +1,269 @@
+fs.c:  memmove(sb, bp->data, sizeof(*sb));
+fs.c:  memset(bp->data, 0, BSIZE);
+fs.c:      if((bp->data[bi/8] & m) == 0){  // Is block free?
+fs.c:        bp->data[bi/8] |= m;  // Mark block in use.
+fs.c:  if((bp->data[bi/8] & m) == 0)
+fs.c:  bp->data[bi/8] &= ~m;
+fs.c:// not stored on disk: ip->ref and ip->flags.
+fs.c://   is free if ip->ref is zero. Otherwise ip->ref tracks
+fs.c://   is set in ip->flags. ilock() reads the inode from
+fs.c://   I_VALID if ip->ref has fallen to zero.
+fs.c://   ... examine and modify ip->xxx ...
+fs.c:// pathname lookup. iget() increments ip->ref so that the inode
+fs.c:    dip = (struct dinode*)bp->data + inum%IPB;
+fs.c:    if(dip->type == 0){  // a free inode
+fs.c:      dip->type = type;
+fs.c:  bp = bread(ip->dev, IBLOCK(ip->inum));
+fs.c:  dip = (struct dinode*)bp->data + ip->inum%IPB;
+fs.c:  dip->type = ip->type;
+fs.c:  dip->major = ip->major;
+fs.c:  dip->minor = ip->minor;
+fs.c:  dip->nlink = ip->nlink;
+fs.c:  dip->size = ip->size;
+fs.c:  memmove(dip->addrs, ip->addrs, sizeof(ip->addrs));
+fs.c:    if(ip->ref > 0 && ip->dev == dev && ip->inum == inum){
+fs.c:      ip->ref++;
+fs.c:    if(empty == 0 && ip->ref == 0)    // Remember empty slot.
+fs.c:  ip->dev = dev;
+fs.c:  ip->inum = inum;
+fs.c:  ip->ref = 1;
+fs.c:  ip->flags = 0;
+fs.c:  ip->ref++;
+fs.c:  if(ip == 0 || ip->ref < 1)
+fs.c:  while(ip->flags & I_BUSY)
+fs.c:  ip->flags |= I_BUSY;
+fs.c:  if(!(ip->flags & I_VALID)){
+fs.c:    bp = bread(ip->dev, IBLOCK(ip->inum));
+fs.c:    dip = (struct dinode*)bp->data + ip->inum%IPB;
+fs.c:    ip->type = dip->type;
+fs.c:    ip->major = dip->major;
+fs.c:    ip->minor = dip->minor;
+fs.c:    ip->nlink = dip->nlink;
+fs.c:    ip->size = dip->size;
+fs.c:    memmove(ip->addrs, dip->addrs, sizeof(ip->addrs));
+fs.c:    ip->flags |= I_VALID;
+fs.c:    if(ip->type == 0)
+fs.c:  if(ip == 0 || !(ip->flags & I_BUSY) || ip->ref < 1)
+fs.c:  ip->flags &= ~I_BUSY;
+fs.c:  if(ip->ref == 1 && (ip->flags & I_VALID) && ip->nlink == 0){
+fs.c:    if(ip->flags & I_BUSY)
+fs.c:    ip->flags |= I_BUSY;
+fs.c:    ip->type = 0;
+fs.c:    ip->flags = 0;
+fs.c:  ip->ref--;
+fs.c:// are listed in ip->addrs[].  The next NINDIRECT blocks are 
+fs.c:// listed in block ip->addrs[NDIRECT].
+fs.c:    if((addr = ip->addrs[bn]) == 0)
+fs.c:      ip->addrs[bn] = addr = balloc(ip->dev);
+fs.c:    if((addr = ip->addrs[NDIRECT]) == 0)
+fs.c:      ip->addrs[NDIRECT] = addr = balloc(ip->dev);
+fs.c:    bp = bread(ip->dev, addr);
+fs.c:    a = (uint*)bp->data;
+fs.c:      a[bn] = addr = balloc(ip->dev);
+fs.c:    if(ip->addrs[i]){
+fs.c:      bfree(ip->dev, ip->addrs[i]);
+fs.c:      ip->addrs[i] = 0;
+fs.c:  if(ip->addrs[NDIRECT]){
+fs.c:    bp = bread(ip->dev, ip->addrs[NDIRECT]);
+fs.c:    a = (uint*)bp->data;
+fs.c:        bfree(ip->dev, a[j]);
+fs.c:    bfree(ip->dev, ip->addrs[NDIRECT]);
+fs.c:    ip->addrs[NDIRECT] = 0;
+fs.c:  ip->size = 0;
+fs.c:  st->dev = ip->dev;
+fs.c:  st->ino = ip->inum;
+fs.c:  st->type = ip->type;
+fs.c:  st->nlink = ip->nlink;
+fs.c:  st->size = ip->size;
+fs.c:  if(ip->type == T_DEV){
+fs.c:    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].read)
+fs.c:    return devsw[ip->major].read(ip, dst, n);
+fs.c:  if(off > ip->size || off + n < off)
+fs.c:  if(off + n > ip->size)
+fs.c:    n = ip->size - off;
+fs.c:    bp = bread(ip->dev, bmap(ip, off/BSIZE));
+fs.c:    memmove(dst, bp->data + off%BSIZE, m);
+fs.c:  if(ip->type == T_DEV){
+fs.c:    if(ip->major < 0 || ip->major >= NDEV || !devsw[ip->major].write)
+fs.c:    return devsw[ip->major].write(ip, src, n);
+fs.c:  if(off > ip->size || off + n < off)
+fs.c:    bp = bread(ip->dev, bmap(ip, off/BSIZE));
+fs.c:    memmove(bp->data + off%BSIZE, src, m);
+fs.c:  if(n > 0 && off > ip->size){
+fs.c:    ip->size = off;
+fs.c:  if(dp->type != T_DIR)
+fs.c:  for(off = 0; off < dp->size; off += sizeof(de)){
+fs.c:      return iget(dp->dev, inum);
+fs.c:  for(off = 0; off < dp->size; off += sizeof(de)){
+fs.c:    if(ip->type != T_DIR){
+log.c://   modify bp->data[]
+ls.c:  for(p=path+strlen(path); p >= path && *p != '/'; p--)
+mp.c:    if((mp = mpsearch1(p-1024, 1024)))
+mp.c:  if((mp = mpsearch()) == 0 || mp->physaddr == 0)
+mp.c:  conf = (struct mpconf*) p2v((uint) mp->physaddr);
+mp.c:  if(mp->imcrp){
+pipe.c:  p->readopen = 1;
+pipe.c:  p->writeopen = 1;
+pipe.c:  p->nwrite = 0;
+pipe.c:  p->nread = 0;
+pipe.c:  initlock(&p->lock, "pipe");
+pipe.c:  acquire(&p->lock);
+pipe.c:    p->writeopen = 0;
+pipe.c:    wakeup(&p->nread);
+pipe.c:    p->readopen = 0;
+pipe.c:    wakeup(&p->nwrite);
+pipe.c:  if(p->readopen == 0 && p->writeopen == 0){
+pipe.c:    release(&p->lock);
+pipe.c:    release(&p->lock);
+pipe.c:  acquire(&p->lock);
+pipe.c:    while(p->nwrite == p->nread + PIPESIZE){  //DOC: pipewrite-full
+pipe.c:      if(p->readopen == 0 || proc->killed){
+pipe.c:        release(&p->lock);
+pipe.c:      wakeup(&p->nread);
+pipe.c:      sleep(&p->nwrite, &p->lock);  //DOC: pipewrite-sleep
+pipe.c:    p->data[p->nwrite++ % PIPESIZE] = addr[i];
+pipe.c:  wakeup(&p->nread);  //DOC: pipewrite-wakeup1
+pipe.c:  release(&p->lock);
+pipe.c:  acquire(&p->lock);
+pipe.c:  while(p->nread == p->nwrite && p->writeopen){  //DOC: pipe-empty
+pipe.c:      release(&p->lock);
+pipe.c:    sleep(&p->nread, &p->lock); //DOC: piperead-sleep
+pipe.c:    if(p->nread == p->nwrite)
+pipe.c:    addr[i] = p->data[p->nread++ % PIPESIZE];
+pipe.c:  wakeup(&p->nwrite);  //DOC: piperead-wakeup
+pipe.c:  release(&p->lock);
+proc.c:    if(p->state == UNUSED)
+proc.c:  p->state = EMBRYO;
+proc.c:  p->pid = nextpid++;
+proc.c:  if((p->kstack = kalloc()) == 0){
+proc.c:    p->state = UNUSED;
+proc.c:  sp = p->kstack + KSTACKSIZE;
+proc.c:  sp -= sizeof *p->tf;
+proc.c:  p->tf = (struct trapframe*)sp;
+proc.c:  sp -= sizeof *p->context;
+proc.c:  p->context = (struct context*)sp;
+proc.c:  memset(p->context, 0, sizeof *p->context);
+proc.c:  p->context->eip = (uint)forkret;
+proc.c:  p->handlers[SIGKILL] = (sighandler_t) -1;
+proc.c:  p->handlers[SIGFPE] = (sighandler_t) -1;
+proc.c:  p->handlers[SIGSEGV] = (sighandler_t) -1;
+proc.c:  p->restorer_addr = -1;
+proc.c:  p->actualsz = 0;
+proc.c:  if((p->pgdir = setupkvm()) == 0)
+proc.c:  inituvm(p->pgdir, _binary_initcode_start, (int)_binary_initcode_size);
+proc.c:  p->sz = PGSIZE;
+proc.c:  memset(p->tf, 0, sizeof(*p->tf));
+proc.c:  p->tf->cs = (SEG_UCODE << 3) | DPL_USER;
+proc.c:  p->tf->ds = (SEG_UDATA << 3) | DPL_USER;
+proc.c:  p->tf->es = p->tf->ds;
+proc.c:  p->tf->ss = p->tf->ds;
+proc.c:  p->tf->eflags = FL_IF;
+proc.c:  p->tf->esp = PGSIZE;
+proc.c:  p->tf->eip = 0;  // beginning of initcode.S
+proc.c:  safestrcpy(p->name, "initcode", sizeof(p->name));
+proc.c:  p->cwd = namei("/");
+proc.c:  p->state = RUNNABLE;
+proc.c:  if((np->pgdir = copyuvm(proc->pgdir, proc->sz)) == 0){
+proc.c:    kfree(np->kstack);
+proc.c:    np->kstack = 0;
+proc.c:    np->state = UNUSED;
+proc.c:  np->sz = proc->sz;
+proc.c:  np->parent = proc;
+proc.c:  *np->tf = *proc->tf;
+proc.c:  np->tf->eax = 0;
+proc.c:      np->ofile[i] = filedup(proc->ofile[i]);
+proc.c:  np->cwd = idup(proc->cwd);
+proc.c:  safestrcpy(np->name, proc->name, sizeof(proc->name));
+proc.c:  pid = np->pid;
+proc.c:  // lock to force the compiler to emit the np->state write last.
+proc.c:  np->state = RUNNABLE;
+proc.c:    if(p->parent == proc){
+proc.c:      p->parent = initproc;
+proc.c:      if(p->state == ZOMBIE)
+proc.c:      if(p->parent != proc)
+proc.c:      if(p->state == ZOMBIE){
+proc.c:        pid = p->pid;
+proc.c:        kfree(p->kstack);
+proc.c:        p->kstack = 0;
+proc.c:        if (p->shared == 0) { // clean the memory space iff it is not shared
+proc.c:          freevm(p->pgdir);
+proc.c:          cowfreevm(p->pgdir);
+proc.c:        p->state = UNUSED;
+proc.c:        p->pid = 0;
+proc.c:        p->parent = 0;
+proc.c:        p->name[0] = 0;
+proc.c:        p->killed = 0;
+proc.c:      if(p->state != RUNNABLE)
+proc.c:      p->state = RUNNING;
+proc.c:      // It should have changed its p->state before coming back.
+proc.c:  // change p->state and then call sched.
+proc.c:    if(p->state == SLEEPING && p->chan == chan)
+proc.c:      p->state = RUNNABLE;
+proc.c:    if(p->pid == pid){
+proc.c:      p->killed = 1;
+proc.c:      if(p->state == SLEEPING)
+proc.c:        p->state = RUNNABLE;
+proc.c:    if(p->state == UNUSED)
+proc.c:    if(p->state >= 0 && p->state < NELEM(states) && states[p->state])
+proc.c:      state = states[p->state];
+proc.c:    cprintf("%d %s %s", p->pid, state, p->name);
+proc.c:    if(p->state == SLEEPING){
+proc.c:      getcallerpcs((uint*)p->context->ebp+2, pc);
+proc.c:  if((np->pgdir = cowmapuvm(proc->pgdir, proc->sz)) == 0){
+proc.c:    kfree(np->kstack);
+proc.c:    np->kstack = 0;
+proc.c:    np->state = UNUSED;
+proc.c:  np->sz = proc->sz;
+proc.c:  np->parent = proc;
+proc.c:  *np->tf = *proc->tf;
+proc.c:  np->tf->eax = 0;
+proc.c:  np->shared = 1;
+proc.c:      np->ofile[i] = filedup(proc->ofile[i]);
+proc.c:  np->cwd = idup(proc->cwd);
+proc.c:  safestrcpy(np->name, proc->name, sizeof(proc->name));
+proc.c:  pid = np->pid;
+proc.c:  // lock to force the compiler to emit the np->state write last.
+proc.c:  np->state = RUNNABLE;
+sysfile.c:  if(ip->type == T_DIR){
+sysfile.c:  ip->nlink++;
+sysfile.c:  if(dp->dev != ip->dev || dirlink(dp, name, ip->inum) < 0){
+sysfile.c:  ip->nlink--;
+sysfile.c:  for(off=2*sizeof(de); off<dp->size; off+=sizeof(de)){
+sysfile.c:  if(ip->nlink < 1)
+sysfile.c:  if(ip->type == T_DIR && !isdirempty(ip)){
+sysfile.c:  if(ip->type == T_DIR){
+sysfile.c:    dp->nlink--;
+sysfile.c:  ip->nlink--;
+sysfile.c:    if(type == T_FILE && ip->type == T_FILE)
+sysfile.c:  if((ip = ialloc(dp->dev, type)) == 0)
+sysfile.c:  ip->major = major;
+sysfile.c:  ip->minor = minor;
+sysfile.c:  ip->nlink = 1;
+sysfile.c:    dp->nlink++;  // for ".."
+sysfile.c:    // No ip->nlink++ for ".": avoid cyclic ref count.
+sysfile.c:    if(dirlink(ip, ".", ip->inum) < 0 || dirlink(ip, "..", dp->inum) < 0)
+sysfile.c:  if(dirlink(dp, name, ip->inum) < 0)
+sysfile.c:    if(ip->type == T_DIR && omode != O_RDONLY){
+sysfile.c:  if(ip->type != T_DIR){
+umalloc.c:  for(p = freep; !(bp > p && bp < p->s.ptr); p = p->s.ptr)
+umalloc.c:    if(p >= p->s.ptr && (bp > p || bp < p->s.ptr))
+umalloc.c:  if(bp + bp->s.size == p->s.ptr){
+umalloc.c:    bp->s.size += p->s.ptr->s.size;
+umalloc.c:    bp->s.ptr = p->s.ptr->s.ptr;
+umalloc.c:    bp->s.ptr = p->s.ptr;
+umalloc.c:  if(p + p->s.size == bp){
+umalloc.c:    p->s.size += bp->s.size;
+umalloc.c:    p->s.ptr = bp->s.ptr;
+umalloc.c:    p->s.ptr = bp;
+umalloc.c:  hp->s.size = nu;
+umalloc.c:  for(p = prevp->s.ptr; ; prevp = p, p = p->s.ptr){
+umalloc.c:    if(p->s.size >= nunits){
+umalloc.c:      if(p->s.size == nunits)
+umalloc.c:        prevp->s.ptr = p->s.ptr;
+umalloc.c:        p->s.size -= nunits;
+umalloc.c:        p += p->s.size;
+umalloc.c:        p->s.size = nunits;
+usertests.c:// does chdir() call iput(p->cwd) in a transaction?
+usertests.c:// does exit() call iput(p->cwd) in a transaction?
+vm.c:  if(p->pgdir == 0)
+vm.c:  lcr3(v2p(p->pgdir));  // switch to new address space
