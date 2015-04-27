@@ -140,6 +140,11 @@ trap(struct trapframe *tf)
 
     }
 
+
+    // for the demand heap allocation
+    growproc(4096);
+    break;
+
   //PAGEBREAK: 13
   default:
     if(proc == 0 || (tf->cs&3) == 0){
