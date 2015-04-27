@@ -103,6 +103,7 @@ extern int sys_signal_register(void);
 extern int sys_signal_restorer(void);
 extern int sys_mprotect(void);
 extern int sys_cowfork(void);
+extern int sys_dsbrk(void);
 
 static int (*syscalls[])(void) = {
 [SYS_fork]    sys_fork,
@@ -131,6 +132,7 @@ static int (*syscalls[])(void) = {
 [SYS_signal_restorer]   sys_signal_restorer,
 [SYS_mprotect]   sys_mprotect,
 [SYS_cowfork]    sys_cowfork,
+[SYS_dsbrk]    sys_dsbrk,
 };
 
 void

@@ -25,3 +25,4 @@
 #define SYS_signal_restorer 24
 #define SYS_mprotect        25
 #define SYS_cowfork         26
+#define SYS_dsbrk           27

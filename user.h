@@ -28,6 +28,7 @@ int signal_register(int, void(*)(int));
 int signal_restorer(void(*)(void));
 int mprotect(void*, int, int);
 int cowfork(void);
+char* dsbrk(int);
 
 // ulib.c
 int stat(char*, struct stat*);
