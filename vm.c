@@ -601,21 +601,22 @@ cowfreevm(pde_t *pgdir) {
   pte = walkpgdir(proc->pgdir, (void *) 0, 0); // get the first entry in pgdir
   pa = PTE_ADDR(*pte);
   indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
-  // if the memory space is only used by this process, free it
-  if (shareTable[indexcheck].count == 1) {
+  acquire(&tablelock);
+  // if there are more than one process sharing the space, decrease the share table counter first
+  if (shareTable[indexcheck].count >= 1) {
     // decease all the related counter
     for(i = 0; i < proc->sz; i += PGSIZE){
       pte = walkpgdir(pgdir, (void *) i, 0);
       pa = PTE_ADDR(*pte);
       indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
       
-      acquire(&tablelock);
       --shareTable[indexcheck].count; // decrease the share counter
-      release(&tablelock);
     }
-    freevm(pgdir);
+    // if the memory space is only used by this process, free it
+    if (shareTable[indexcheck].count == 0) freevm(pgdir);
     proc->shared = 0;
   }
+  release(&tablelock);
 }
 
 // Calculate the new size for growing process from oldsz to
