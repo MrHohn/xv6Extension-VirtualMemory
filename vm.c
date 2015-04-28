@@ -493,9 +493,9 @@ cowmapuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: page not present");
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    flags &= 0xFFD; // disable the Writable bit
+    flags &= 0xFFD; // disable the Writable bit for child
     index = (pa >> 12) & 0xFFFFF; // get the physical page num
-    *pte &= ~PTE_W; // disable the Writable bit
+    *pte &= ~PTE_W; // disable the Writable bit for parent
 
     // instead of create new pages, remap the pages for cow child
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
@@ -549,7 +549,6 @@ cowcopyuvm(int index)
   if (shared == 1) {
     for(i = 0; i < proc->sz; i += PGSIZE){
       pte = walkpgdir(proc->pgdir, (void *) i, 0);
-      *pte &= ~PTE_P; // reset the present bit for remap the pages
       pa = PTE_ADDR(*pte);
       indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
       flags = PTE_FLAGS(*pte);
@@ -559,21 +558,29 @@ cowcopyuvm(int index)
       memmove(mem, (char*)p2v(pa), PGSIZE);
       
       acquire(&tablelock);
-      --shareTable[indexcheck].count; // decrease the share count
-      // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
-      if (shareTable[indexcheck].count == 0) {
-        // kfree((char*)p2v(pa));
-        // char * v = p2v(PTE_ADDR(proc->pgdir[i]));
-        // free the page of physical memory
-        char * v = p2v(pa);
-        kfree(v);
+      // if there are still multiple process using this space
+      if (shareTable[indexcheck].count != 1) {
+        --shareTable[indexcheck].count; // decrease the share count
+        *pte &= ~PTE_P; // reset the present bit for remap the pages
+        // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
+        if (shareTable[indexcheck].count == 0) {
+          // kfree((char*)p2v(pa));
+          // char * v = p2v(PTE_ADDR(proc->pgdir[i]));
+          // free the page of physical memory
+          char * v = p2v(pa);
+          kfree(v);
+        }
+
+        if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
+          cprintf("bad in cowcopyuvm\n");
+          goto bad;
+        }
+      }
+      // if there is only one process using this space
+      else {
+        *pte |= PTE_W; // just enable the Writable bit for this process
       }
       release(&tablelock);
-
-      if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
-        cprintf("bad in cowcopyuvm\n");
-        goto bad;
-      }
     }
     proc->shared = 0;
     lcr3(v2p(proc->pgdir)); // flush the TLB
