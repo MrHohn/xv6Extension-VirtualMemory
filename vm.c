@@ -486,6 +486,7 @@ cowmapuvm(pde_t *pgdir, uint sz)
 
   if((d = setupkvm()) == 0)
     return 0;
+  acquire(&tablelock);
   for(i = 0; i < sz; i += PGSIZE){
     if((pte = walkpgdir(pgdir, (void *) i, 0)) == 0)
       panic("copyuvm: pte should exist");
@@ -501,17 +502,16 @@ cowmapuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
 
-    acquire(&tablelock);
     if (shareTable[index].count == 0) {
       shareTable[index].count = 2; // now is shared, totally 2 processes
     }
     else {
       ++shareTable[index].count; // increase the share count
     }
-    release(&tablelock);
     
     // cprintf("pid: %d index: %d count: %d\n", proc->pid, index, shareTable[index].count);
   }
+  release(&tablelock);
   lcr3(v2p(proc->pgdir)); // flush the TLB  
   return d;
 
@@ -547,6 +547,7 @@ cowcopyuvm(int index)
   }
 
   if (shared == 1) {
+    acquire(&tablelock);
     for(i = 0; i < proc->sz; i += PGSIZE){
       pte = walkpgdir(proc->pgdir, (void *) i, 0);
       pa = PTE_ADDR(*pte);
@@ -557,12 +558,9 @@ cowcopyuvm(int index)
         goto bad;
       memmove(mem, (char*)p2v(pa), PGSIZE);
       
-      acquire(&tablelock);
       // if there are still multiple process using this space
       if (shareTable[indexcheck].count != 1) {
         --shareTable[indexcheck].count; // decrease the share count
-        *pte &= ~PTE_P; // reset the present bit for remap the pages
-        // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
         if (shareTable[indexcheck].count == 0) {
           // kfree((char*)p2v(pa));
           // char * v = p2v(PTE_ADDR(proc->pgdir[i]));
@@ -570,7 +568,7 @@ cowcopyuvm(int index)
           char * v = p2v(pa);
           kfree(v);
         }
-
+        *pte &= ~PTE_P; // reset the present bit for remap the pages
         if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
           cprintf("bad in cowcopyuvm\n");
           goto bad;
@@ -580,8 +578,9 @@ cowcopyuvm(int index)
       else {
         *pte |= PTE_W; // just enable the Writable bit for this process
       }
-      release(&tablelock);
+      // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
     }
+    release(&tablelock);
     proc->shared = 0;
     lcr3(v2p(proc->pgdir)); // flush the TLB
     return 1;
