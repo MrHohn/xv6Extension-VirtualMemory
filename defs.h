@@ -182,7 +182,7 @@ int             copyout(pde_t*, uint, void*, uint);
 void            clearpteu(pde_t *pgdir, char *uva);
 int             mprotect(int addr, int len, int prot);
 pde_t*          cowmapuvm(pde_t*, uint);
-int             cowcopyuvm(int);
+int             cowcopyuvm(void);
 void            sharetableinit(void);
 void            cowfreevm(pde_t*);
 int             dchangesize(uint, uint);

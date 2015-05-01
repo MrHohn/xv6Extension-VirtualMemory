@@ -88,14 +88,10 @@ trap(struct trapframe *tf)
     }
 
   case T_PGFLT:
-    // cprintf("tf->eip: %d\n", tf->eip);
-    // cprintf("pid: %d\n", proc->pid);
     if (proc->handlers[SIGSEGV] != (sighandler_t) -1) {
       siginfo_t info;
-      // info.addr = tf->eax; // p's addr is stored in eax till now
       info.addr = rcr2(); // get the error access address
-      // cprintf("in page fault trap now~~~~~~~~~~~~~\n");
-      // cprintf("info.addr: %d\n", info.addr);
+
       pde_t *pde;
       pte_t *pgtab;
       int* SpecAddr;
@@ -120,24 +116,9 @@ trap(struct trapframe *tf)
     }
 
     // for share part
-    if (proc-> shared == 1) {
-
-      pde_t *pde_s;
-      pte_t *pgtab_s;
-      int index;
-
-      pde_s = &(proc->pgdir[PDX(rcr2())]); // address of the page directory
-      pgtab_s = (pte_t*)p2v(PTE_ADDR(*pde_s)); // address of the page table
-      index = (pgtab_s[PTX(rcr2())] >> 12) & 0xFFFFF; // get the content in the entry
-
-      // index = (walkpgdir(proc->pgdir, (void *) rcr2(), 0) >> 12) & 0xFFFFF;
-
-      if (cowcopyuvm(index) != 0) {
-        // proc->tf->eax = 0;
-        // cprintf("return addr: %d\n", tf->eip);
-        break;
-      }
-
+    if (cowcopyuvm() != 0) {
+      // cprintf("return addr: %d\n", tf->eip);
+      break;
     }
 
 
@@ -150,11 +131,6 @@ trap(struct trapframe *tf)
       proc->actualsz = dallocuvm(proc->pgdir, proc->actualsz, addr + 1);
       break;
     }
-    // cprintf("proc kstack bottom: %d\n", (int*)proc->kstack);
-    // cprintf("proc esp: %d\n", tf->esp);
-    // cprintf("proc ebp: %d\n", tf->ebp);
-    // growproc(4096);
-    // break;
 
   //PAGEBREAK: 13
   default:

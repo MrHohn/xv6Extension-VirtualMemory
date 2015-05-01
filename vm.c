@@ -330,6 +330,8 @@ copyuvm(pde_t *pgdir, uint sz)
     if(mappages(d, (void*)i, PGSIZE, v2p(mem), flags) < 0)
       goto bad;
   }
+
+  // lcr3(v2p(proc->pgdir)); // flush the TLB  
   return d;
 
 bad:
@@ -397,7 +399,6 @@ mprotect(addr, len, prot)
   
     int i;
     for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
       pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
       pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
       specAddr = (int*)&pgtab[PTX(addr + i)];
@@ -413,7 +414,6 @@ mprotect(addr, len, prot)
   
     int i;
     for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
       pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
       pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
       specAddr = (int*)&pgtab[PTX(addr + i)];
@@ -428,7 +428,6 @@ mprotect(addr, len, prot)
     
     int i;
     for (i  = 0; i < len; ++i) {
-    // for (i  = 0; i < 1; ++i) {
       pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
       pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
       specAddr = (int*)&pgtab[PTX(addr + i)];
@@ -444,7 +443,6 @@ mprotect(addr, len, prot)
   }
 
   lcr3(v2p(proc->pgdir)); // flush the TLB
-  // cprintf("|||||||||||exit from mprotect\n");
   return 0;
 }
 
@@ -461,12 +459,11 @@ struct spinlock tablelock; // lock for share table
 void
 sharetableinit(void)
 {
-  int i;
-  for (i = 0; i < 60 * 1024; ++i) {
-    // initlock(&shareTable[i].lock, "sharetable");
-    // shareTable[i].count = 1;
-    shareTable[i].count = 0;
-  }
+  // int i;
+  // for (i = 0; i < 60 * 1024; ++i) {
+  //   // initlock(&shareTable[i].lock, "sharetable");
+  //   shareTable[i].count = 0;
+  // }
   initlock(&tablelock, "sharetable");
   // cprintf("share table init done\n");
 }
@@ -481,7 +478,6 @@ cowmapuvm(pde_t *pgdir, uint sz)
   pde_t *d;
   pte_t *pte;
   uint pa, i, flags;
-  // char *mem;
   int index;
 
   if((d = setupkvm()) == 0)
@@ -492,16 +488,15 @@ cowmapuvm(pde_t *pgdir, uint sz)
       panic("copyuvm: pte should exist");
     if(!(*pte & PTE_P))
       panic("copyuvm: page not present");
+    *pte &= ~PTE_W; // disable the Writable bit
     pa = PTE_ADDR(*pte);
     flags = PTE_FLAGS(*pte);
-    flags &= 0xFFD; // disable the Writable bit for child
-    index = (pa >> 12) & 0xFFFFF; // get the physical page num
-    *pte &= ~PTE_W; // disable the Writable bit for parent
 
     // instead of create new pages, remap the pages for cow child
     if(mappages(d, (void*)i, PGSIZE, pa, flags) < 0)
       goto bad;
 
+    index = (pa >> 12) & 0xFFFFF; // get the physical page num
     if (shareTable[index].count == 0) {
       shareTable[index].count = 2; // now is shared, totally 2 processes
     }
@@ -521,67 +516,41 @@ bad:
 }
 
 int
-cowcopyuvm(int index)
+cowcopyuvm(void)
 {
   // cprintf("in cow copy, index: %d\n", index);
 
-  uint i;
-  uint flags;
   uint pa;
-  int indexcheck;
+  int index;
+  uint addr;
   pte_t *pte;
-  int shared = 0;
   char *mem;
 
-  // check if the address is in user space
-  for(i = 0; i < proc->sz; i += PGSIZE){
-    pte = walkpgdir(proc->pgdir, (void *) i, 0);
-    pa = PTE_ADDR(*pte);
-    indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
-    if (index == indexcheck) {
-      // cprintf("is shared!\n");
-      shared = 1;
-      break;
-    }  
-    // cprintf("indexcheck = %d\n", indexcheck);
-  }
+  addr = rcr2();
+  pte = walkpgdir(proc->pgdir, (void *) addr, 0);
+  pa = PTE_ADDR(*pte);
+  index = (pa >> 12) & 0xFFFFF; // get the physical page num
 
-  if (shared == 1) {
+  // check if the address is in this process's user space
+  if (addr < proc->sz) {
     acquire(&tablelock);
-    for(i = 0; i < proc->sz; i += PGSIZE){
-      pte = walkpgdir(proc->pgdir, (void *) i, 0);
-      pa = PTE_ADDR(*pte);
-      indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
-      flags = PTE_FLAGS(*pte);
-      flags |= 0x2; // enable the Writable bit
-      if((mem = kalloc()) == 0)
+
+    // if there are still multiple processes using this space
+    if (shareTable[index].count > 1) {
+      if((mem = kalloc()) == 0) // allcoate a new page in physical memory
         goto bad;
       memmove(mem, (char*)p2v(pa), PGSIZE);
-      
-      // if there are still multiple process using this space
-      if (shareTable[indexcheck].count != 1) {
-        --shareTable[indexcheck].count; // decrease the share count
-        if (shareTable[indexcheck].count == 0) {
-          // kfree((char*)p2v(pa));
-          // char * v = p2v(PTE_ADDR(proc->pgdir[i]));
-          // free the page of physical memory
-          char * v = p2v(pa);
-          kfree(v);
-        }
-        *pte &= ~PTE_P; // reset the present bit for remap the pages
-        if(mappages(proc->pgdir, (void*)i, PGSIZE, v2p(mem), flags) < 0) {
-          cprintf("bad in cowcopyuvm\n");
-          goto bad;
-        }
-      }
-      // if there is only one process using this space
-      else {
-        *pte |= PTE_W; // just enable the Writable bit for this process
-      }
-      // cprintf("pid: %d index: %d count: %d\n", proc->pid, indexcheck, shareTable[indexcheck].count);
+      *pte &= 0xFFF; // reset the first 20 bits of the entry
+      *pte |= v2p(mem) | PTE_W; // insert the new physical page num and set to writable
+
+      --shareTable[index].count; // decrease the share count
     }
+    // if there is only one process using this space
+    else {
+      *pte |= PTE_W; // just enable the Writable bit for this process
+    }
+
     release(&tablelock);
-    proc->shared = 0;
     lcr3(v2p(proc->pgdir)); // flush the TLB
     return 1;
   }
