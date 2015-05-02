@@ -257,7 +257,7 @@ deallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
     return oldsz;
 
   a = PGROUNDUP(newsz);
-  for(; a  < oldsz; a += PGSIZE){
+  for(; a < oldsz; a += PGSIZE){
     pte = walkpgdir(pgdir, (char*)a, 0);
     if(!pte)
       a += (NPTENTRIES - 1) * PGSIZE;
@@ -559,32 +559,96 @@ bad:
   return 0;
 } 
 
-void
-cowfreevm(pde_t *pgdir) {
-  pte_t *pte;
-  uint pa;
-  uint i;
-  int indexcheck;
+// void
+// cowfreevm(pde_t *pgdir) {
+//   pte_t *pte;
+//   uint pa;
+//   uint i, j;
+//   int indexcheck;
+  
+//   acquire(&tablelock);
 
-  pte = walkpgdir(proc->pgdir, (void *) 0, 0); // get the first entry in pgdir
-  pa = PTE_ADDR(*pte);
-  indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
+//   // check all the related counters
+//   for(i = 0; i < proc->sz; i += PGSIZE){
+//     pte = walkpgdir(pgdir, (void *) i, 0);
+//     pa = PTE_ADDR(*pte);
+//     indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
+    
+//     // if there are more than one process sharing the space, decrease the share table counter first
+//     if (shareTable[indexcheck].count > 1) {
+//       --shareTable[indexcheck].count; // decrease the share counter
+//     }
+//     // if the memory space is only used by this process, free it
+//     else {
+//       cprintf("before free related pages, i: %d\n", i);
+//       j = i / PGSIZE;
+//       if(pgdir[j] & PTE_P){
+//         char *v = p2v(PTE_ADDR(pgdir[j]));
+//         kfree(v);
+//       }
+//       cprintf("after free related pages\n");
+//       shareTable[indexcheck].count = 0;
+//     }
+//   }
+//   proc->shared = 0;
+//   kfree((char*)pgdir);
+
+//   release(&tablelock);
+// }
+
+int
+cowdeallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
+{
+  pte_t *pte;
+  uint a, pa;
+  int index;
+
+  if(newsz >= oldsz)
+    return oldsz;
+
+  a = PGROUNDUP(newsz);
   acquire(&tablelock);
-  // if there are more than one process sharing the space, decrease the share table counter first
-  if (shareTable[indexcheck].count >= 1) {
-    // decease all the related counter
-    for(i = 0; i < proc->sz; i += PGSIZE){
-      pte = walkpgdir(pgdir, (void *) i, 0);
+  for(; a < oldsz; a += PGSIZE){
+    pte = walkpgdir(pgdir, (char*)a, 0);
+    if(!pte)
+      a += (NPTENTRIES - 1) * PGSIZE;
+    else if((*pte & PTE_P) != 0){
       pa = PTE_ADDR(*pte);
-      indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
-      
-      --shareTable[indexcheck].count; // decrease the share counter
+      index = (pa >> 12) & 0xFFFFF; // get the physical page num
+      if(pa == 0)
+        panic("kfree");
+      // if there are more than one process sharing the space, decrease the counter
+      if (shareTable[index].count > 1) {
+        --shareTable[index].count;
+      }
+      // if the memory space is only used by this process, free it
+      else {
+        char *v = p2v(pa);
+        kfree(v);
+        shareTable[index].count = 0;
+      }
+      *pte = 0;
     }
-    // if the memory space is only used by this process, free it
-    if (shareTable[indexcheck].count == 0) freevm(pgdir);
-    proc->shared = 0;
   }
   release(&tablelock);
+  return newsz;
+}
+
+void
+cowfreevm(pde_t *pgdir)
+{
+  uint i;
+
+  if(pgdir == 0)
+    panic("freevm: no pgdir");
+  cowdeallocuvm(pgdir, KERNBASE, 0);
+  for(i = 0; i < NPDENTRIES; i++){
+    if(pgdir[i] & PTE_P){
+      char *v = p2v(PTE_ADDR(pgdir[i]));
+      kfree(v);
+    }
+  }
+  kfree((char*)pgdir);
 }
 
 // Calculate the new size for growing process from oldsz to
