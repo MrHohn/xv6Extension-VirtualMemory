@@ -75,6 +75,7 @@ found:
   p->handlers[SIGSEGV] = (sighandler_t) -1;
   p->restorer_addr = -1;
   p->actualsz = 0;
+  p->shared = 0;
 
   return p;
 }
@@ -246,7 +247,7 @@ wait(void)
         else {
           // check whether the process need to clean the memory or not
           cowfreevm(p->pgdir);
-          // p->shared = 0;
+          p->shared = 0;
         }
         p->state = UNUSED;
         p->pid = 0;

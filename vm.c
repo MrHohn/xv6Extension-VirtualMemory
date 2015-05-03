@@ -487,7 +487,7 @@ cowcopyuvm(void)
   index = (pa >> 12) & 0xFFFFF; // get the physical page num
 
   // check if the address is in this process's user space
-  if (addr < proc->sz && proc->shared == 1) {
+  if (addr < proc->sz) {
     acquire(&tablelock);
 
     // if there are still multiple processes using this space

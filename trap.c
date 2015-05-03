@@ -112,7 +112,7 @@ trap(struct trapframe *tf)
     }
 
     // for share part
-    if (cowcopyuvm() != 0) {
+    if (proc->shared == 1 && cowcopyuvm() != 0) {
       // cprintf("return addr: %d\n", tf->eip);
       break;
     }

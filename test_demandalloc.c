@@ -1,8 +1,8 @@
 #include "types.h"
 #include "user.h"
 
+// #define NUM_ALLOCS 10000
 #define NUM_ALLOCS 10000
-// #define NUM_ALLOCS 100
 
 int main(void)
 {
