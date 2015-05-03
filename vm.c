@@ -390,56 +390,16 @@ copyout(pde_t *pgdir, uint va, void *p, uint len)
 int
 mprotect(addr, len, prot)
 {
-  pde_t *pde;
-  pte_t *pgtab;
-  int* specAddr;
+  pte_t *pte;
 
-  if (prot == PROT_NONE) {
-    cprintf("In none section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      specAddr = (int*)&pgtab[PTX(addr + i)];
-      // specAddr = walkpgdir(proc->pgdir, (void*) addr + i, 0);
+  int i;
+  for (i  = 0; i < len; ++i) {
+    pte = walkpgdir(proc->pgdir, (void*) addr + i, 0);
 
-      cprintf("content: %d\n", *specAddr);
-      *specAddr = *specAddr & 0xFFFFFFFB; // disable the User bit
-      cprintf("content: %d\n", *specAddr);
-    }
-  }
-  else if ((prot & PROT_READ) && !(prot & PROT_WRITE)) {
-    cprintf("In read section\n");
-  
-    int i;
-    for (i  = 0; i < len; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      specAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *specAddr);
-      *specAddr = *specAddr & 0xFFFFFFFD; // disable the Writable bit
-      cprintf("content: %d\n", *specAddr);
-    }
-  }
-  else if (prot & PROT_WRITE) {
-    cprintf("In write section\n");
-    
-    int i;
-    for (i  = 0; i < len; ++i) {
-      pde = &(proc->pgdir[PDX(addr + i)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      specAddr = (int*)&pgtab[PTX(addr + i)];
-
-      cprintf("content: %d\n", *specAddr);
-      *specAddr = *specAddr | prot; // enable the Writable bit
-      cprintf("content: %d\n", *specAddr);
-    }
-  }
-  else {
-    cprintf("Error input for PROTECT LEVEL");
-    return -1;
+    cprintf("content: %d\n", *pte);
+    *pte &= 0xFFFFFFFC; // disable the last two bits;
+    *pte |= prot; // set the corresponding permission
+    cprintf("content: %d\n", *pte);
   }
 
   lcr3(v2p(proc->pgdir)); // flush the TLB
@@ -459,11 +419,6 @@ struct spinlock tablelock; // lock for share table
 void
 sharetableinit(void)
 {
-  // int i;
-  // for (i = 0; i < 60 * 1024; ++i) {
-  //   // initlock(&shareTable[i].lock, "sharetable");
-  //   shareTable[i].count = 0;
-  // }
   initlock(&tablelock, "sharetable");
   // cprintf("share table init done\n");
 }

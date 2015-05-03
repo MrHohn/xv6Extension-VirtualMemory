@@ -246,7 +246,7 @@ wait(void)
         else {
           // check whether the process need to clean the memory or not
           cowfreevm(p->pgdir);
-          p->shared = 0;
+          // p->shared = 0;
         }
         p->state = UNUSED;
         p->pid = 0;

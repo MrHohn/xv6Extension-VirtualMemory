@@ -145,6 +145,8 @@ int sys_mprotect(void)
   if (argint(2, &prot) < 0)
     return -1;
 
+  if (prot > 0x003) // invalid input for protection level
+    return -1;
   cprintf("addr: %d\nlen: %d\nprot: %d\n", addr, len, prot);
 
   return mprotect(addr, len, prot);

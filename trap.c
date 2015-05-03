@@ -92,27 +92,23 @@ trap(struct trapframe *tf)
       siginfo_t info;
       info.addr = rcr2(); // get the error access address
 
-      pde_t *pde;
-      pte_t *pgtab;
-      int* SpecAddr;
-
-      pde = &(proc->pgdir[PDX(info.addr)]); // address of the page directory
-      pgtab = (pte_t*)p2v(PTE_ADDR(*pde)); // address of the page table
-      SpecAddr = (int*)&pgtab[PTX(info.addr)];
-
-      int temp = *SpecAddr & 0x6; // just keep the User and Writable bits
-      if (temp == 0x0 || temp == 0x2) {
-        info.type = PROT_NONE;
+      uint temp = tf->err;
+      cprintf("err num: 0x%x\n", temp);
+      // make sure it is not a Supervisory process
+      if (temp >= 0x4) {
+        if (temp == 0x4 || temp == 0x6) {
+          info.type = PROT_NONE;
+        }
+        else if (temp == 0x7) {
+          info.type = PROT_READ;
+        }
+        else {
+          info.type = PROT_WRITE; 
+        }
+   
+        signal_deliver(SIGSEGV, info);
+        break;
       }
-      else if (temp == 0x4) {
-        info.type = PROT_READ;
-      }
-      else {
-        info.type = PROT_WRITE; 
-      }
-
-      signal_deliver(SIGSEGV, info);
-      break;
     }
 
     // for share part
@@ -124,6 +120,7 @@ trap(struct trapframe *tf)
 
     // for the demand heap allocation
     uint addr = rcr2(); 
+    // judge if the err address is in the heap space
     if (addr > tf->ebp && addr < proc->sz && proc->actualsz != proc->sz) {
       // cprintf("proc size: %d\n", proc->sz);
       // cprintf("proc actual size: %d\n", proc->actualsz);
