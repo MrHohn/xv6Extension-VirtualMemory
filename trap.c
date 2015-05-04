@@ -125,7 +125,10 @@ trap(struct trapframe *tf)
       // cprintf("proc size: %d\n", proc->sz);
       // cprintf("proc actual size: %d\n", proc->actualsz);
       // cprintf("error addr: %d\n", rcr2());
-      proc->actualsz = dallocuvm(proc->pgdir, proc->actualsz, addr + 1);
+      proc->actualsz = allocuvm(proc->pgdir, proc->actualsz, addr + 1);
+      if (proc->actualsz == proc->sz) {
+        proc->actualsz = 0;
+      }
       break;
     }
 

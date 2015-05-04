@@ -514,43 +514,6 @@ bad:
   return 0;
 } 
 
-// void
-// cowfreevm(pde_t *pgdir) {
-//   pte_t *pte;
-//   uint pa;
-//   uint i, j;
-//   int indexcheck;
-  
-//   acquire(&tablelock);
-
-//   // check all the related counters
-//   for(i = 0; i < proc->sz; i += PGSIZE){
-//     pte = walkpgdir(pgdir, (void *) i, 0);
-//     pa = PTE_ADDR(*pte);
-//     indexcheck = (pa >> 12) & 0xFFFFF; // get the physical page num
-    
-//     // if there are more than one process sharing the space, decrease the share table counter first
-//     if (shareTable[indexcheck].count > 1) {
-//       --shareTable[indexcheck].count; // decrease the share counter
-//     }
-//     // if the memory space is only used by this process, free it
-//     else {
-//       cprintf("before free related pages, i: %d\n", i);
-//       j = i / PGSIZE;
-//       if(pgdir[j] & PTE_P){
-//         char *v = p2v(PTE_ADDR(pgdir[j]));
-//         kfree(v);
-//       }
-//       cprintf("after free related pages\n");
-//       shareTable[indexcheck].count = 0;
-//     }
-//   }
-//   proc->shared = 0;
-//   kfree((char*)pgdir);
-
-//   release(&tablelock);
-// }
-
 int
 cowdeallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
 {
@@ -620,32 +583,5 @@ dchangesize(uint oldsz, uint newsz)
 
   a = PGROUNDUP(oldsz);
   for(; a < newsz; a += PGSIZE){}
-  return newsz;
-}
-
-// Allocate page tables and physical memory to grow process from oldsz to
-// newsz, which need not be page aligned.  Returns new size or 0 on error.
-int
-dallocuvm(pde_t *pgdir, uint oldsz, uint newsz)
-{
-  char *mem;
-  uint a;
-
-  if(newsz >= KERNBASE)
-    return 0;
-  if(newsz < oldsz)
-    return oldsz;
-
-  a = PGROUNDUP(oldsz);
-  for(; a < newsz; a += PGSIZE){
-    mem = kalloc();
-    if(mem == 0){
-      cprintf("allocuvm out of memory\n");
-      deallocuvm(pgdir, newsz, oldsz);
-      return 0;
-    }
-    memset(mem, 0, PGSIZE);
-    mappages(pgdir, (char*)a, PGSIZE, v2p(mem), PTE_W|PTE_U);
-  }
   return newsz;
 }

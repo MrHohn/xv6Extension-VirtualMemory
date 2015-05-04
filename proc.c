@@ -574,6 +574,5 @@ dgrowproc(int n)
     return -1;
   }
   proc->sz = sz;
-  switchuvm(proc);
   return 0;
 }
