@@ -1,7 +1,6 @@
 #include "types.h"
 #include "user.h"
 
-// #define NUM_FORKS 500
 #define NUM_FORKS 500
 
 int main(void)
@@ -20,13 +19,11 @@ int main(void)
         t1 = uptime();
         if(fork() == 0)
         {
-            // printf(1, "I'm a child(fork), pid: %d\n", getpid());
             exit();
         }
         else
         {
            t2 += uptime() - t1;
-           // printf(1, "wait for a child...\n");
            wait();
         }
     }
@@ -40,13 +37,11 @@ int main(void)
         t1 = uptime();
         if(cowfork() == 0)
         {
-            // printf(1, "I'm a child(cowfork), pid: %d\n", getpid());
             exit();
         }
         else
         {
             t2 += uptime() - t1;
-            // printf(1, "wait for a child...\n");
             wait();
         }
     }

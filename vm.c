@@ -396,10 +396,10 @@ mprotect(addr, len, prot)
   for (i  = 0; i < len; ++i) {
     pte = walkpgdir(proc->pgdir, (void*) addr + i, 0);
 
-    cprintf("content: %d\n", *pte);
+    cprintf("before change, content: %d\n", *pte);
     *pte &= 0xFFFFFFFC; // disable the last two bits;
     *pte |= prot; // set the corresponding permission
-    cprintf("content: %d\n", *pte);
+    cprintf("after change, content: %d\n", *pte);
   }
 
   lcr3(v2p(proc->pgdir)); // flush the TLB

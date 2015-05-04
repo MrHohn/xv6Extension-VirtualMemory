@@ -129,6 +129,7 @@ trap(struct trapframe *tf)
       if (proc->actualsz == proc->sz) {
         proc->actualsz = 0;
       }
+      switchuvm(proc);
       break;
     }
 
